@@ -43,21 +43,20 @@ def phone_number_register(request):
     password2 = request.data.get('password2')
     #check if passwords match
     if password != password2:
-
         return Response({'message': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
-
-
+    
     user=User.objects.filter(username=phone_number)
     print(user)
     print("creating user  ..................................")
     #check if phone number is alreaady registered
-    if not user:
+    if not user or user[0].is_active==False:
         #create temporary user
         print(password)
-        user = User.objects.create(username=phone_number, password=make_password(password),is_active=False)
-        user.save()
-        profile = Profile.objects.create(user=user,finished=False)
-        profile.save()
+        if not user:
+            user =User.objects.create_user(username=phone_number, password=password, is_active=False)
+            user.save()
+            profile = Profile.objects.create(user=user,finished=False)
+            profile.save()
 
 
         #generate code and store it
@@ -110,17 +109,17 @@ def finish_profile(request):
     profile = user.profile
     #getting data
     birth_date = data.get('birth_date')
-
     name = data.get('name')
     birth_date = data.get('birth_date')
     gender = data.get('gender')
-
-
-    interests = data.get('interests')
+    interests = data.get('interests') # array of strings
     #The interests data should be in a list format.
     profile.interests.set(interests)
+
+    #TO BE CHANGED --------------------------------------------
     bio = data.get('bio')
-    prompts = data.get('prompts')
+    prompts = data.get('prompts') # array of strings
+    
 
     # Update profile fields
     user.first_name = name
@@ -134,9 +133,16 @@ def finish_profile(request):
     user.save()
 
     # Update photos
+
+    #to be tested -----------------------------------------------------
+    #make sure to save the pics in a folder called photos in the media folder
     photos = data.get('photos', [])
     for photo in photos:
-        photo_obj = Photo.objects.create(profile=profile, image=photo)
-        photo_obj.save()
+        #mark the the first pic as the profile picture
+        if photo == photos[0]:
+            photo_obj = Photo.objects.create(profile=profile, image=photo, profile_picture=True)
+        else:
+            photo_obj = Photo.objects.create(profile=profile, image=photo,profile_picture=False)
+            photo_obj.save()
 
     return Response({'message': 'Profile completed successfully'}, status=status.HTTP_200_OK)

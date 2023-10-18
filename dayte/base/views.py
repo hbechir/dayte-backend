@@ -14,6 +14,7 @@ def update_location():
     profile=user.profile
     profile.lat=request.data.get('lat')
     profile.lng=request.data.get('lng')
+    #profile.location_name=request.data.get('location')
     #to be added location name---------------------------------
     profile.save()
     return Response({'message': 'Location updated'}, status=status.HTTP_200_OK)

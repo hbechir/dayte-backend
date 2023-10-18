@@ -74,6 +74,7 @@ class Profile(models.Model):
 class Photo(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='photos')
+    profile_picture = models.BooleanField(default=False)
     def __str__(self):
         return self.image.name
 
@@ -87,3 +88,13 @@ class matches(models.Model):
     disliked = models.BooleanField(default=False)
     def __str__(self):
         return self.user1.first_name + ' - ' + self.user2.first_name
+    def relike_(self):
+        if self.disliked:
+            if (timezone.now() - self.date_matched).days > 10:
+                self.disliked = False
+                self.save()
+                return True
+            else:
+                return False
+        else:
+            return False
