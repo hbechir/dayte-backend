@@ -44,8 +44,11 @@ class interests(models.Model):
     
     def __str__(self):
         return self.name
-class Profile(models.Model):
+from datetime import datetime, timedelta
 
+from django.utils import timezone
+
+class Profile(models.Model):
     FINISHED_CHOICES = (
         (False, 'Incomplete'),
         (True, 'Complete'),
@@ -56,19 +59,38 @@ class Profile(models.Model):
         ('premium', 'Premium'),
     )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    phone_number = models.CharField(max_length=15)
     birth_date = models.DateField(null=True, blank=True)
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     location = models.CharField(max_length=100, null=True, blank=True)
-    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, null=True, blank=True) 
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, null=True, blank=True)
+
     gender = models.CharField(max_length=20, null=True, blank=True)
     interests = models.ManyToManyField(interests, blank=True)
     bio = models.TextField(null=True, blank=True)
     prompts = models.TextField(null=True, blank=True)
     finished = models.BooleanField(choices=FINISHED_CHOICES, default=False)
+    last_home_screen_load = models.DateTimeField(null=True, blank=True)
+
     def __str__(self):
         return self.user.username
+
+    def should_load_home_screen(self):
+        if not self.last_home_screen_load:
+            return True
+        else:
+            return timezone.now() - self.last_home_screen_load > timedelta(hours=24)
+    def set_last_home_screen_load(self):
+        self.last_home_screen_load = timezone.now()
+        self.save()
+
+class DailySuggestion(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, primary_key=True, related_name='suggested')
+    date = models.DateField(auto_now_add=True)
+    suggestions = models.ManyToManyField(User, related_name='suggestions_for')
+
+    def __str__(self):
+        return f"{self.user.username}'s daily suggestions"
 
 
 class Photo(models.Model):

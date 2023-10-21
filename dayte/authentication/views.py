@@ -28,7 +28,6 @@ load_dotenv()
 # Retrieve Twilio credentials from environment variables
 TWILIO_ACCOUNT_SID = os.getenv('TWILIO_ACCOUNT_SID')
 TWILIO_AUTH_TOKEN = os.getenv('TWILIO_AUTH_TOKEN')
-TWILIO_PHONE_NUMBER = os.getenv('TWILIO_PHONE_NUMBER')
 
 # Initialize the Twilio Client
 client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
@@ -58,7 +57,14 @@ def phone_number_register(request):
             profile = Profile.objects.create(user=user,finished=False)
             profile.save()
 
-
+        else:
+            user=user[0]
+            user.password=make_password(password)
+            user.is_active=False
+            user.save()
+            profile=user.profile
+            profile.finished=False
+            profile.save()
         #generate code and store it
         generated_code = generate_verification_code()
         code = Code.objects.create(user=user,phone_number=phone_number, code=generated_code)
@@ -68,7 +74,7 @@ def phone_number_register(request):
 
         #send code to user via sms
         message = client.messages.create(
-        messaging_service_sid='MG61d130b8b378075bd7e68dc8d70732eb',
+        messaging_service_sid='MG9c70198c30b456e221c519e78c8875e7',
         body='Your verification code is :' + generated_code,
         to=phone_number
         )

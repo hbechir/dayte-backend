@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import path,include
-from .views import phone_number_register,phone_number_verification,home,finish_profile
+from .views import phone_number_register,phone_number_verification,finish_profile
+from base.views import home
 
 urlpatterns = [
     path('', include('drf_social_oauth2.urls', namespace='drf')),
