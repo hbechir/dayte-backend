@@ -1,6 +1,14 @@
+from datetime import datetime, timedelta
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth.models import User
+import os
+from dotenv import load_dotenv
+import base64
+from io import BytesIO
+from django.core.files.base import ContentFile
+
+
 
 # Create your models here.
 class interests(models.Model):
@@ -63,12 +71,9 @@ class Profile(models.Model):
     lat = models.FloatField(null=True, blank=True)
     lng = models.FloatField(null=True, blank=True)
     location = models.CharField(max_length=100, null=True, blank=True)
-    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, null=True, blank=True)
-
+    plan = models.CharField(max_length=20, choices=PLAN_CHOICES, null=True, blank=True, default='free')
     gender = models.CharField(max_length=20, null=True, blank=True)
     interests = models.ManyToManyField(interests, blank=True)
-    bio = models.TextField(null=True, blank=True)
-    prompts = models.TextField(null=True, blank=True)
     finished = models.BooleanField(choices=FINISHED_CHOICES, default=False)
     last_home_screen_load = models.DateTimeField(null=True, blank=True)
 
@@ -97,9 +102,26 @@ class Photo(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='photos')
     profile_picture = models.BooleanField(default=False)
-    def __str__(self):
+    def str(self):
         return self.image.name
+    def save_picture_from_base64(self, base64_image):
+        # Decode the base64 string into binary data
+        image_data = base64.b64decode(base64_image)
 
+        # Create a ContentFile from the binary data
+        image_content = ContentFile(image_data, name='picture.jpg')  # Provide a proper filename
+
+        # Assign the ContentFile to the picture field
+        self.image.save('picture.jpg', image_content, save=True)
+
+
+
+class prompt(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    prompt = models.CharField(max_length=100)
+    answer = models.CharField(max_length=100)
+    def __str__(self):
+        return self.prompt
 
 
 class matches(models.Model):
@@ -107,16 +129,37 @@ class matches(models.Model):
     user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user2')
     matched = models.BooleanField(default=False)
     date_matched = models.DateTimeField(default=timezone.now)
-    disliked = models.BooleanField(default=False)
+    seen = models.BooleanField(default=False)
+    user1_pref_days = models.CharField(max_length=100, default='', blank=True)
+    user2_pref_days = models.CharField(max_length=100, default='', blank=True)
     def __str__(self):
-        return self.user1.first_name + ' - ' + self.user2.first_name
-    def relike_(self):
-        if self.disliked:
-            if (timezone.now() - self.date_matched).days > 10:
-                self.disliked = False
-                self.save()
-                return True
-            else:
-                return False
+        return self.user1.first_name + ' liked ' + self.user2.first_name +" and matched: "+str(self.matched)
+
+
+class dayte(models.Model):
+    date = models.DateTimeField(default=timezone.now)
+    match = models.ForeignKey('matches', on_delete=models.SET_NULL, null=True, related_name='dayte')
+
+    def __str__(self):
+        return "Date on: "+str(self.date)
+
+    def calc_mid(self):
+        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+        user1_pref_days = set(self.match.user1_pref_days.split(','))
+        user2_pref_days = set(self.match.user2_pref_days.split(','))
+
+        common_days = user1_pref_days & user2_pref_days
+        if not common_days:
+            return
+
+        common_days_indices = sorted(days.index(day) for day in common_days)
+        today_index = datetime.today().weekday()
+
+        for day_index in common_days_indices:
+            if day_index >= today_index:
+                break
         else:
-            return False
+            day_index = common_days_indices[0]
+        self.date = datetime.today() + timedelta((day_index - today_index) % 7)
+        self.save()
+        return self.date

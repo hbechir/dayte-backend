@@ -7,7 +7,6 @@ from oauth2_provider.models import AccessToken, RefreshToken
 
 from django.contrib.auth.hashers import make_password
 
-
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny
 from rest_framework.permissions import IsAuthenticated
@@ -15,10 +14,13 @@ from rest_framework.decorators import permission_classes
 from twilio.rest import Client  # Import Twilio Client
 from .serializers import PhoneNumberSerializer
 from .models import Code
-from base.models import Profile,Photo
+from base.models import Profile,Photo,prompt,interests
 from django.contrib.auth.models import User
 import os
 from dotenv import load_dotenv
+import base64
+from io import BytesIO
+from django.core.files.base import ContentFile
 
 from .utils import generate_verification_code
 
@@ -40,7 +42,7 @@ def phone_number_register(request):
     phone_number = request.data.get('phone_number')
     password = request.data.get('password')
     password2 = request.data.get('password2')
-    #check if passwords match
+
     if password != password2:
         return Response({'message': 'Passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
     
@@ -107,48 +109,97 @@ def phone_number_verification(request):
 
 
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def finish_profile(request):
+    # Get the authenticated user and their profile
     user = request.user
-    data = request.data
     profile = user.profile
-    #getting data
+
+    # Get the data from the request
+    data = request.data
     birth_date = data.get('birth_date')
     name = data.get('name')
-    birth_date = data.get('birth_date')
+    # Extract the fields from the data
     gender = data.get('gender')
-    interests = data.get('interests') # array of strings
-    #The interests data should be in a list format.
-    profile.interests.set(interests)
-
-    #TO BE CHANGED --------------------------------------------
-    bio = data.get('bio')
+    answers = data.get('answers') # array of strings
     prompts = data.get('prompts') # array of strings
+    rqinterests = data.get('interests',[]) # array of strings
+
+
+    # Set the interests field on the profile
+    # The interests data should be in a list format.
+    #go through the strings and get interests objects where the name is the string
+    interests_objs=[]
+    for interest in rqinterests:
+        print(interest)
+        interest_obj=interests.objects.get(name=interest)
+        interests_objs.append(interest_obj)
+    profile.interests.set(interests_objs)
+
     
 
-    # Update profile fields
+
+    # Create prompt objects for each prompt and answer
+    for i in range(len(prompts)):
+        print("prompt: "+prompts[i])
+        print("answer: "+answers[i])
+        prompt_obj = prompt.objects.create(user=user, prompt=prompts[i], answer=answers[i])
+        prompt_obj.save()
+
+    # Update the user and profile fields
     user.first_name = name
     profile.birth_date = birth_date
     profile.gender = gender
-    profile.interests = interests
-    profile.bio = bio
-    profile.prompts = prompts
     profile.finished = True
+
+    # Save the user and profile objects
     profile.save()
     user.save()
 
     # Update photos
+    # To be tested -----------------------------------------------------
+    # Make sure to save the pics in a folder called photos in the media folder
+    # Get the list of photos from the request data
+    try:
+        photos = data.get('photos', [])
 
-    #to be tested -----------------------------------------------------
-    #make sure to save the pics in a folder called photos in the media folder
-    photos = data.get('photos', [])
-    for photo in photos:
-        #mark the the first pic as the profile picture
-        if photo == photos[0]:
-            photo_obj = Photo.objects.create(profile=profile, image=photo, profile_picture=True)
-        else:
-            photo_obj = Photo.objects.create(profile=profile, image=photo,profile_picture=False)
-            photo_obj.save()
+        # Create a new Photo object for each photo in the list
+        for i, photo in enumerate(photos):
+            # Create a new Photo object with the current user's profile
+            if i == 0:
+                photo_obj = Photo.objects.create(profile=profile, profile_picture=True)
+            else:
+                photo_obj = Photo.objects.create(profile=profile, profile_picture=False)
 
+            # Save the image data to the image field of the Photo object
+            photo_obj.save_picture_from_base64(photo)
+
+            # Return a success response
+    except:
+        return Response({'message': 'Error uploading photos'}, status=status.HTTP_400_BAD_REQUEST)
     return Response({'message': 'Profile completed successfully'}, status=status.HTTP_200_OK)
+
+       
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def update_password(request):
+    # Get the authenticated user
+    user = request.user
+    # Get the data from the request
+    data = request.data
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    new_password2 = data.get('new_password2')
+    # Check if the old password is correct
+    if not user.check_password(old_password):
+        return Response({'message': 'Old password is incorrect'}, status=status.HTTP_400_BAD_REQUEST)
+    # Check if the new passwords match
+    if new_password != new_password2:
+        return Response({'message': 'New passwords do not match'}, status=status.HTTP_400_BAD_REQUEST)
+    # Update the password
+    user.set_password(new_password)
+    user.save()
+    # Return a success response
+    return Response({'message': 'Password updated successfully'}, status=status.HTTP_200_OK)
