@@ -29,7 +29,11 @@ SECRET_KEY = 'django-insecure-1!&ui&qt!1^xi#kd+dwd!kc(z91of)(%+pumyle6@4q=8zg&oz
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    'localhost',
+    '192.168.1.16'
+
+]
 
 
 # Application definition
@@ -67,8 +71,8 @@ AUTHENTICATION_BACKENDS = (
     # Django
     'django.contrib.auth.backends.ModelBackend',
 )
-SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = ''
-SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = ''
+SOCIAL_AUTH_GOOGLE_OAUTH2_KEY = '186651681146-jt0f27mjspuurmrpm2mdc2ipimsfoq2f.apps.googleusercontent.com'
+SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET = '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'
 SOCIAL_AUTH_GOOGLE_OAUTH2_SCOPE = [
     'https://www.googleapis.com/auth/userinfo.email',
     'https://www.googleapis.com/auth/userinfo.profile',

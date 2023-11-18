@@ -7,7 +7,7 @@ from .models import Profile, matches, prompt,dayte
 from django.contrib.auth.models import User
 from .utils import getSuggestions,get_unseen_matches,get_all_matches
 from django.utils import timezone
-
+import json
 # Create your views here.
 
 @api_view(['patch'])
@@ -128,23 +128,30 @@ def updateProfile(request):
     if data.get('prompts'):
         profile.prompts = data.get('prompts')
 
-    # set pictures or rearrange them
-    photos = data.get('photos', [])
-    for i, photo in enumerate(photos):
-        # Create a new Photo object with the current user's profile
-        if i == 0:
-            photo_obj = Photo.objects.create(profile=profile, profile_picture=True)
-        else:
-            photo_obj = Photo.objects.create(profile=profile, profile_picture=False)
-        
-        # Save the image data to the image field of the Photo object            if photo.startswith('http'):
-        # Check if the URL exists
-        response = requests.get(photo)
-        if response.status_code == 200:
-            photo_obj.image.save(os.path.basename(photo), ContentFile(response.content))
-        else:
-            photo_obj.save_picture_from_base64(photo)
+    #get the list of pictures  links of the user and save in an array
+    pictures=[]
+    for photo in profile.photo_set.all():
+        pictures.append(photo.image.url)
+    #get the list of pictures links of the user from the request and save in an array
+    pictures_req=[]
+    for photo in data.get('pictures'):
+        pictures_req.append(photo)
+    #check if the arrays are not the same
+    if pictures!=pictures_req:
+        for i in range(len(pictures_req)):
+            if pictures_req[i] != pictures[i]:
+                if pictures_req[i] in pictures and pictures_req[i] != pictures[i]:
+                    #get the rqpic[i] in the pictures array 
+                    pic=Photo.objects.get(image=pictures_req[i])
+                    #change the content of the pic to the content of pictures_req[i]
+                    pictures[i]=pictures_req[i]
 
+
+
+                    pass
+                pass
+
+                
 
 
 @api_view(['post'])
@@ -158,18 +165,13 @@ def like(request):
     if matches.objects.filter(user1=suggestion, user2=user,matched=False).exists()  :
         match=matches.objects.get(user1=suggestion, user2=user,matched=False)
         match.matched=True
-        match.seen = True
         match.save()
         #return both users profile pictures (the images field profilepicture is true)
-        pictures=[]
-        for photo in profile.photo_set.all():
-            if photo.profile_picture:
-                pictures.append(photo.image.url)
+        picture = ''
         for photo in suggestion.profile.photo_set.all():
             if photo.profile_picture:
-                pictures.append(photo.image.url)
-        
-        return Response({'message': 'match','pictures':pictures}, status=status.HTTP_200_OK)
+                picture = photo.image.url
+        return Response({'message': 'match','picture':picture,'id':match.id}, status=status.HTTP_200_OK)
     if matches.objects.filter(user1=user, user2=suggestion,matched=False).exists():
         print("You already liked this user")
         return Response({'message': 'You already liked this user'}, status=status.HTTP_400_BAD_REQUEST)
@@ -187,12 +189,28 @@ def set_dayte_day(request):
     user=request.user
     profile=user.profile
     match_id=request.data.get('match_id')
-    days=request.data.get('days') #a string of days seperated by commas ","
+    days_times=json.loads(request.data.get('days_times')) #a map of days and times
+    days=[]
+    times=[]
+    for day, time in days_times.items():
+        days.append(day)
+        times.append(time)
+    #convert the map to string
+    days_str = ','.join(days)
+    times_str = ','.join(times)
+
+
     match=matches.objects.get(id=match_id)
     if match.user1==user:
-        match.user1_pref_days=days
+        match.user1_pref_days=days_str
+        match.user1_pref_times=times_str
+        match.seen_user1=True
+
     else:
-        match.user2_pref_days=days
+        match.user2_pref_days=days_str
+        match.user2_pref_times=times_str
+        match.seen_user2=True
+
     match.save()
     #check if the other user has set their days and if so create a dayte object
     if match.user1_pref_days!='' and match.user2_pref_days!='':
@@ -200,8 +218,9 @@ def set_dayte_day(request):
         dayte_day = dayte_obj.calc_mid()
         dayte_obj.save()
         day_of_week = dayte_day.strftime('%A')
-        
-        return Response({'message': 'You have a confirmed date on next'+ day_of_week + ' ' + str(dayte_day)}, status=status.HTTP_200_OK)
+        date = dayte_day.strftime('%Y-%m-%d')
+        time = dayte_day.strftime('%H:%M')    
+        return Response({'message': 'You have a confirmed date on next '+ day_of_week + ' ' + str(date)+' at '+time}, status=status.HTTP_200_OK)
     else:
         return Response({'message': 'You have to wait for the other user to choose the date'}, status=status.HTTP_200_OK)
         

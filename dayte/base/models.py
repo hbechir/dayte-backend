@@ -8,7 +8,7 @@ import base64
 from io import BytesIO
 from django.core.files.base import ContentFile
 
-
+import random
 
 # Create your models here.
 class interests(models.Model):
@@ -102,6 +102,7 @@ class Photo(models.Model):
     profile = models.ForeignKey(Profile, on_delete=models.CASCADE)
     image = models.ImageField(upload_to='photos')
     profile_picture = models.BooleanField(default=False)
+    index = models.IntegerField(default=0)
     def str(self):
         return self.image.name
     def save_picture_from_base64(self, base64_image):
@@ -129,17 +130,21 @@ class matches(models.Model):
     user2 = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user2')
     matched = models.BooleanField(default=False)
     date_matched = models.DateTimeField(default=timezone.now)
-    seen = models.BooleanField(default=False)
+    seen_user1 = models.BooleanField(default=False)
+    seen_user2 = models.BooleanField(default=False)
     user1_pref_days = models.CharField(max_length=100, default='', blank=True)
+    user1_pref_times = models.CharField(max_length=100, default='', blank=True)
     user2_pref_days = models.CharField(max_length=100, default='', blank=True)
+    user2_pref_times = models.CharField(max_length=100, default='', blank=True)
     def __str__(self):
         return self.user1.first_name + ' liked ' + self.user2.first_name +" and matched: "+str(self.matched)
 
 
 class dayte(models.Model):
-    date = models.DateTimeField(default=timezone.now)
+    date = models.DateField(default=timezone.now)
+    hour = models.CharField(max_length=100, default='', blank=True)
     match = models.ForeignKey('matches', on_delete=models.SET_NULL, null=True, related_name='dayte')
-
+    
     def __str__(self):
         return "Date on: "+str(self.date)
 
@@ -148,10 +153,16 @@ class dayte(models.Model):
         user1_pref_days = set(self.match.user1_pref_days.split(','))
         user2_pref_days = set(self.match.user2_pref_days.split(','))
 
+
+        user1_pref_times = self.match.user1_pref_times.split(',')
+        user2_pref_times = self.match.user2_pref_times.split(',')
         common_days = user1_pref_days & user2_pref_days
         if not common_days:
-            return
-
+            #add a random day and a random hour with this format example : '15:00'
+            self.date = datetime.today() + timedelta(random.randint(1,7))
+            self.hour = str(random.randint(8,20))+':00'
+            self.save()
+            return self.date
         common_days_indices = sorted(days.index(day) for day in common_days)
         today_index = datetime.today().weekday()
 
@@ -161,5 +172,18 @@ class dayte(models.Model):
         else:
             day_index = common_days_indices[0]
         self.date = datetime.today() + timedelta((day_index - today_index) % 7)
+
+        #get the index of the day we chose
+        day_index = common_days_indices[0]    
+        #get the position of day_index in the list of days chosen by user1
+
+        user1_day_index = list(user1_pref_days).index(days[day_index])
+        r=random.randint(1,2)
+        if r==1:
+            self.hour=user1_pref_times[user1_day_index]
+        else:
+            self.hour=user2_pref_times[user1_day_index]
+        
+
         self.save()
         return self.date

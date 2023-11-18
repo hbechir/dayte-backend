@@ -49,36 +49,46 @@ def userPlanGrid(user):
         return 2
 def get_unseen_matches(user):
     matches_list=[]
-    for match in matches.objects.filter(user1=user,matched=True,seen=False):
+    for match in matches.objects.filter(user1=user,matched=True,seen_user1=False):
         match_dict={}
-        match_dict['id'] = match.user2.id
+        match_dict['id'] = match.id
         match_dict['name']=match.user2.first_name
         match_dict['profile_picture']=match.user2.profile.photo_set.all()[0].image.url
-        match.seen=True
         match.save()
         matches_list.append(match_dict)
-    for match in matches.objects.filter(user2=user,matched=True,seen=False):
+    for match in matches.objects.filter(user2=user,matched=True,seen_user2=False):
         match_dict={}
-        match_dict['id'] = match.user2.id
-        match_dict['name']=match.user2.first_name
-        match_dict['profile_picture']=match.user2.profile.photo_set.all()[0].image.url
-        match.seen=True
+        match_dict['id'] = match.id
+        match_dict['name']=match.user1.first_name
+        match_dict['profile_picture']=match.user1.profile.photo_set.all()[0].image.url
         match.save()
         matches_list.append(match_dict)
     return matches_list
 def get_all_matches(user):
     matches_list=[]
-    for match in matches.objects.filter(user1=user,matched=True):
+    for match in matches.objects.filter(user1=user,matched=True,seen_user1=True,seen_user2=True):
         match_dict={}
-        match_dict['id'] = match.user2.id
+        match_dict['id'] = match.id
         match_dict['name']=match.user2.first_name
         match_dict['profile_picture']=match.user2.profile.photo_set.all()[0].image.url
+        match_dict['date']=match.dayte.date
+
+        time_str =  match.dayte.hour
+        time_obj = datetime.strptime(time_str, '%H:%M')
+        time_12hr_str = time_obj.strftime('%I:%M %p')
+        match_dict['time']=time_12hr_str
+
         matches_list.append(match_dict)
-    for match in matches.objects.filter(user2=user,matched=True):
+    for match in matches.objects.filter(user2=user,matched=True,seen_user1=True,seen_user2=True):
         match_dict={}
-        match_dict['id'] = match.user2.id
-        match_dict['name']=match.user2.first_name
-        match_dict['profile_picture']=match.user2.profile.photo_set.all()[0].image.url
+        match_dict['id'] = match.id
+        match_dict['name']=match.user1.first_name
+        match_dict['profile_picture']=match.user1.profile.photo_set.all()[0].image.url
+        match_dict['date']=match.dayte.date
+        time_str =  match.dayte.hour
+        time_obj = datetime.strptime(time_str, '%H:%M')
+        time_12hr_str = time_obj.strftime('%I:%M %p')
+        match_dict['time']=time_12hr_str
         matches_list.append(match_dict)
     return matches_list
     
