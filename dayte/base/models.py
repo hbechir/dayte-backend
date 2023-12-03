@@ -138,12 +138,10 @@ class matches(models.Model):
     user2_pref_times = models.CharField(max_length=100, default='', blank=True)
     def __str__(self):
         return self.user1.first_name + ' liked ' + self.user2.first_name +" and matched: "+str(self.matched)
-
-
 class dayte(models.Model):
     date = models.DateField(default=timezone.now)
     hour = models.CharField(max_length=100, default='', blank=True)
-    match = models.ForeignKey('matches', on_delete=models.SET_NULL, null=True, related_name='dayte')
+    match = models.OneToOneField(matches, on_delete=models.CASCADE, primary_key=True, related_name='dayte') 
     
     def __str__(self):
         return "Date on: "+str(self.date)

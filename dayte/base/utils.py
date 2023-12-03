@@ -1,3 +1,4 @@
+from datetime import datetime
 from django.contrib.auth.models import User
 from .models import Profile, DailySuggestion, interests,matches
 
@@ -71,19 +72,19 @@ def get_all_matches(user):
         match_dict['id'] = match.id
         match_dict['name']=match.user2.first_name
         match_dict['profile_picture']=match.user2.profile.photo_set.all()[0].image.url
+        
         match_dict['date']=match.dayte.date
-
         time_str =  match.dayte.hour
         time_obj = datetime.strptime(time_str, '%H:%M')
         time_12hr_str = time_obj.strftime('%I:%M %p')
         match_dict['time']=time_12hr_str
-
         matches_list.append(match_dict)
     for match in matches.objects.filter(user2=user,matched=True,seen_user1=True,seen_user2=True):
         match_dict={}
         match_dict['id'] = match.id
         match_dict['name']=match.user1.first_name
         match_dict['profile_picture']=match.user1.profile.photo_set.all()[0].image.url
+        print (match.dayte)
         match_dict['date']=match.dayte.date
         time_str =  match.dayte.hour
         time_obj = datetime.strptime(time_str, '%H:%M')
@@ -91,4 +92,3 @@ def get_all_matches(user):
         match_dict['time']=time_12hr_str
         matches_list.append(match_dict)
     return matches_list
-    

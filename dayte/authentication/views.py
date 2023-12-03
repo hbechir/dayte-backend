@@ -115,7 +115,12 @@ def phone_number_verification(request):
 def finish_profile(request):
     # Get the authenticated user and their profile
     user = request.user
-    profile = user.profile
+    #create a profile for the user if it does not exist
+    if not hasattr(user, 'profile'):
+        profile = Profile.objects.create(user=user)
+        profile.save()
+    else:
+        profile = user.profile
 
     # Get the data from the request
     data = request.data
